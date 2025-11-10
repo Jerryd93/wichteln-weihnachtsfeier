@@ -6,11 +6,13 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-let participants = [];
-let assignments = {};
+// In-memory storage (kleine Events OK). Für Persistenz DB verwenden.
+let participants = []; // [{ name, pin }]
+let assignments = {};  // pin -> recipientName
 let started = false;
 
-const ADMIN_PASS = "wichteladmin93";
+// Admin password: aus Umgebung oder Fallback (wie gewünscht)
+const ADMIN_PASS = process.env.ADMIN_PASS || "wichteladmin93";
 
 function checkAdminPassword(req, res) {
   const pw = (req.body && req.body.password) || req.query.password;
@@ -21,6 +23,7 @@ function checkAdminPassword(req, res) {
   return true;
 }
 
+// --- API: add participant ---
 app.post("/api/add", (req, res) => {
   if (started) return res.json({ error: "Wichteln bereits gestartet!" });
   const { name } = req.body;
@@ -32,10 +35,12 @@ app.post("/api/add", (req, res) => {
   res.json({ pin });
 });
 
+// --- API: list participants & status ---
 app.get("/api/list", (req, res) => {
   res.json({ names: participants.map(p => p.name), started });
 });
 
+// --- API: start (protected) ---
 app.post("/api/start", (req, res) => {
   if (!checkAdminPassword(req, res)) return;
   if (participants.length < 2)
@@ -43,6 +48,8 @@ app.post("/api/start", (req, res) => {
 
   started = true;
   const names = participants.map(p => p.name);
+
+  // Versuche zufällige Derangement (ohne Selbstzuweisung)
   let shuffled;
   let tries = 0;
   do {
@@ -51,6 +58,7 @@ app.post("/api/start", (req, res) => {
     if (tries > 5000) break;
   } while (names.some((n, i) => n === shuffled[i]));
 
+  // Fallback: einfache Rotation, falls Zufall kein Derangement lieferte
   if (names.some((n, i) => n === shuffled[i])) {
     const n = names.length;
     shuffled = names.map((_, i) => names[(i + 1) % n]);
@@ -64,6 +72,7 @@ app.post("/api/start", (req, res) => {
   res.json({ ok: true });
 });
 
+// --- API: reveal by PIN ---
 app.post("/api/reveal", (req, res) => {
   const { pin } = req.body;
   if (!started) return res.json({ error: "Wichteln noch nicht gestartet." });
@@ -72,6 +81,7 @@ app.post("/api/reveal", (req, res) => {
   res.json({ recipient });
 });
 
+// --- API: reset all (protected) ---
 app.post("/api/reset", (req, res) => {
   if (!checkAdminPassword(req, res)) return;
   participants = [];

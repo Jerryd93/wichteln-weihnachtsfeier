@@ -6,60 +6,111 @@
   <title>Geheimes Wichteln 🎄</title>
   <style>
     body{font-family:Inter,Arial,sans-serif;background:#f9f4f1;margin:0;padding:2rem;color:#222;text-align:center;}
-    h1{color:#b22222}
+    h1{color:#b22222;margin-bottom:0.25rem;}
     input,button{padding:.6rem .8rem;margin:.3rem;border-radius:8px;border:1px solid #ccc;font-size:1rem;}
     button{background:#b22222;color:white;cursor:pointer;}
     button:hover{background:#8b0000;}
-    .card{background:#fff;padding:1rem;border-radius:12px;max-width:700px;margin:1rem auto;box-shadow:0 4px 10px rgba(0,0,0,0.1);text-align:left;}
+    .card{background:#fff;padding:1rem;border-radius:12px;max-width:900px;margin:1rem auto;box-shadow:0 4px 10px rgba(0,0,0,0.08);text-align:left;}
     ul{list-style:none;padding:0}
     li{margin:.4rem 0;padding:.4rem .6rem;border-radius:8px;background:#fff8f6;border:1px solid #eee;}
     #adminPanel{display:none;margin-top:1rem;}
+    .guide{background:#fff8f6;border-left:5px solid #b22222;padding:1rem;border-radius:8px;max-width:900px;margin:0 auto 1rem;text-align:left;line-height:1.6;}
+    .guide h2{margin-top:0;color:#b22222;}
+    .top{display:flex;gap:1rem;align-items:center;justify-content:space-between;}
+    .muted{color:#666;font-size:.95rem}
+    @media (max-width:700px){ .top{flex-direction:column;align-items:flex-start} }
   </style>
 </head>
 <body>
-  <h1>🎁 Geheimes Wichteln</h1>
-
-  <div class="card">
-    <h2>Teilnehmer hinzufügen</h2>
-    <input type="text" id="name" placeholder="Name" />
-    <button onclick="addParticipant()">Hinzufügen</button>
-    <p id="pinInfo"></p>
+  <div class="top" style="max-width:900px;margin:0 auto 0.5rem;">
+    <div>
+      <h1>🎁 Geheimes Wichteln</h1>
+      <div class="muted">Einfach, geheim & ein bisschen magisch ✨</div>
+    </div>
   </div>
 
-  <div class="card">
-    <h2>Teilnehmerliste</h2>
-    <ul id="list"></ul>
+  <div class="guide" role="region" aria-label="Anleitung">
+    <h2>🎅 So funktioniert das Wichteln:</h2>
+    <ol>
+      <li>Gib deinen <strong>Namen</strong> ein und klicke auf <strong>„Hinzufügen“</strong>.</li>
+      <li>Du bekommst einen <strong>PIN-Code</strong> — bitte <u>unbedingt aufschreiben!</u></li>
+      <li>Wenn alle eingetragen sind, startet der Admin das Wichteln (geschützt durch Passwort).</li>
+      <li>Danach kannst du mit deinem PIN herausfinden, <strong>wen du beschenkst 🎁</strong>.</li>
+      <li>Nur der Admin kann alles zurücksetzen oder neu starten.</li>
+    </ol>
+  </div>
 
-    <div id="adminLogin">
+  <div class="card" aria-labelledby="addTitle">
+    <h2 id="addTitle">Teilnehmer hinzufügen</h2>
+    <input type="text" id="name" placeholder="Name" />
+    <button id="addBtn">Hinzufügen</button>
+    <p id="pinInfo" class="muted"></p>
+  </div>
+
+  <div class="card" aria-labelledby="listTitle">
+    <h2 id="listTitle">Teilnehmerliste</h2>
+    <ul id="list" aria-live="polite"></ul>
+
+    <div id="adminLogin" style="margin-top:1rem;">
       <h3>🔐 Admin Login</h3>
       <input type="password" id="adminPw" placeholder="Admin-Passwort" />
-      <button onclick="loginAdmin()">Login</button>
+      <button id="loginBtn">Login</button>
       <p id="loginStatus" style="color:red;"></p>
     </div>
 
-    <div id="adminPanel">
+    <div id="adminPanel" aria-hidden="true">
       <h3>🛠️ Admin-Bereich</h3>
       <p>Status: <span id="statusText"></span></p>
-      <button onclick="startWichteln()">Wichteln starten</button>
-      <button onclick="resetAll()" style="background:#777;">Alles zurücksetzen</button>
-      <button onclick="logoutAdmin()" style="background:#555;">Logout</button>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+        <button id="startBtn">Wichteln starten</button>
+        <button id="resetBtn" style="background:#777;">Alles zurücksetzen</button>
+        <button id="logoutBtn" style="background:#555;">Logout</button>
+      </div>
     </div>
   </div>
 
-  <div class="card">
-    <h2>Zuteilung anzeigen</h2>
+  <div class="card" aria-labelledby="revealTitle">
+    <h2 id="revealTitle">Zuteilung anzeigen</h2>
     <input type="text" id="pin" placeholder="Dein PIN-Code" />
-    <button onclick="reveal()">Ziehen</button>
-    <p id="result"></p>
+    <button id="revealBtn">Ziehen</button>
+    <p id="result" class="muted"></p>
   </div>
 
   <script>
     const apiBase = "/api";
     let adminLoggedIn = false;
+    // Admin-PW (Frontend nur zur Anzeige des Admin-Panel-UX). Backend prüft wirklich.
     const adminPassword = "wichteladmin93";
 
+    // DOM
+    const addBtn = document.getElementById("addBtn");
+    const addInput = document.getElementById("name");
+    const pinInfo = document.getElementById("pinInfo");
+    const listEl = document.getElementById("list");
+    const loginBtn = document.getElementById("loginBtn");
+    const adminPwInput = document.getElementById("adminPw");
+    const loginStatus = document.getElementById("loginStatus");
+    const adminPanel = document.getElementById("adminPanel");
+    const adminLogin = document.getElementById("adminLogin");
+    const statusText = document.getElementById("statusText");
+    const startBtn = document.getElementById("startBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const logoutBtn = document.getElementById("logoutBtn");
+    const revealBtn = document.getElementById("revealBtn");
+    const pinInput = document.getElementById("pin");
+    const resultP = document.getElementById("result");
+
+    addBtn.addEventListener("click", addParticipant);
+    addInput.addEventListener("keydown", e => { if (e.key === "Enter") addParticipant(); });
+    loginBtn.addEventListener("click", loginAdmin);
+    startBtn.addEventListener("click", startWichteln);
+    resetBtn.addEventListener("click", resetAll);
+    logoutBtn.addEventListener("click", logoutAdmin);
+    revealBtn.addEventListener("click", reveal);
+    pinInput.addEventListener("keydown", e => { if (e.key === "Enter") reveal(); });
+
     async function addParticipant() {
-      const name = document.getElementById("name").value.trim();
+      const name = addInput.value.trim();
       if (!name) return alert("Bitte einen Namen eingeben!");
       const res = await fetch(apiBase + "/add", {
         method: "POST",
@@ -68,18 +119,22 @@
       });
       const data = await res.json();
       if (data.error) return alert(data.error);
-      document.getElementById("pinInfo").textContent =
-        `Dein PIN: ${data.pin} — bitte sicher aufbewahren!`;
-      document.getElementById("name").value = "";
+      pinInfo.textContent = `Dein PIN: ${data.pin} — bitte sicher aufbewahren!`;
+      addInput.value = "";
       loadList();
     }
 
     async function loadList() {
-      const res = await fetch(apiBase + "/list");
-      const data = await res.json();
-      document.getElementById("list").innerHTML =
-        (data.names && data.names.length ? data.names.map(n => `<li>${n}</li>`).join("") : "<li>Keine Teilnehmer</li>");
-      document.getElementById("statusText").textContent = data.started ? "Gestartet" : "Noch nicht gestartet";
+      try {
+        const res = await fetch(apiBase + "/list");
+        const data = await res.json();
+        listEl.innerHTML = (data.names && data.names.length)
+          ? data.names.map(n => `<li>${escapeHtml(n)}</li>`).join("")
+          : "<li class='muted'>Keine Teilnehmer</li>";
+        statusText.textContent = data.started ? "Gestartet" : "Noch nicht gestartet";
+      } catch (e) {
+        listEl.innerHTML = "<li class='muted'>Fehler beim Laden</li>";
+      }
     }
 
     async function startWichteln() {
@@ -97,7 +152,7 @@
     }
 
     async function reveal() {
-      const pin = document.getElementById("pin").value.trim();
+      const pin = pinInput.value.trim();
       if (!pin) return alert("Bitte deinen PIN eingeben!");
       const res = await fetch(apiBase + "/reveal", {
         method: "POST",
@@ -105,8 +160,7 @@
         body: JSON.stringify({ pin }),
       });
       const data = await res.json();
-      document.getElementById("result").textContent =
-        data.error ? data.error : `Du beschenkst: ${data.recipient}`;
+      resultP.textContent = data.error ? data.error : `Du beschenkst: ${data.recipient}`;
     }
 
     async function resetAll() {
@@ -124,23 +178,28 @@
     }
 
     function loginAdmin() {
-      const pw = document.getElementById("adminPw").value.trim();
+      const pw = adminPwInput.value.trim();
       if (pw === adminPassword) {
         adminLoggedIn = true;
-        document.getElementById("adminLogin").style.display = "none";
-        document.getElementById("adminPanel").style.display = "block";
-        document.getElementById("loginStatus").textContent = "";
+        adminLogin.style.display = "none";
+        adminPanel.style.display = "block";
+        loginStatus.textContent = "";
+        adminPwInput.value = "";
       } else {
-        document.getElementById("loginStatus").textContent = "Falsches Passwort.";
+        loginStatus.textContent = "Falsches Passwort.";
       }
     }
 
     function logoutAdmin() {
       adminLoggedIn = false;
-      document.getElementById("adminLogin").style.display = "block";
-      document.getElementById("adminPanel").style.display = "none";
+      adminLogin.style.display = "block";
+      adminPanel.style.display = "none";
     }
 
+    // einfache HTML-escape
+    function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+    // initial
     loadList();
   </script>
 </body>
