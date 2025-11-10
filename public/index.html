@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Geheimes Wichteln 🎄</title>
+  <style>
+    body{font-family:Inter,Arial,sans-serif;background:#f9f4f1;margin:0;padding:2rem;color:#222;text-align:center;}
+    h1{color:#b22222}
+    input,button{padding:.6rem .8rem;margin:.3rem;border-radius:8px;border:1px solid #ccc;font-size:1rem;}
+    button{background:#b22222;color:white;cursor:pointer;}
+    button:hover{background:#8b0000;}
+    .hidden{display:none;}
+    .card{background:#fff;padding:1rem;border-radius:12px;max-width:600px;margin:1rem auto;box-shadow:0 4px 10px rgba(0,0,0,0.1);}
+    ul{list-style:none;padding:0}
+    li{margin:.4rem 0;padding:.4rem .6rem;border-radius:8px;background:#fff8f6;border:1px solid #eee;}
+  </style>
+</head>
+<body>
+  <h1>🎁 Geheimes Wichteln</h1>
+
+  <div class="card">
+    <h2>Teilnehmer hinzufügen</h2>
+    <input type="text" id="name" placeholder="Name" />
+    <button onclick="addParticipant()">Hinzufügen</button>
+    <p id="pinInfo"></p>
+  </div>
+
+  <div class="card">
+    <h2>Teilnehmerliste</h2>
+    <button onclick="startWichteln()">Wichteln starten</button>
+    <ul id="list"></ul>
+  </div>
+
+  <div class="card">
+    <h2>Zuteilung anzeigen</h2>
+    <input type="text" id="pin" placeholder="Dein PIN-Code" />
+    <button onclick="reveal()">Ziehen</button>
+    <p id="result"></p>
+  </div>
+
+  <script>
+    const apiBase = "/api";
+    async function addParticipant() {
+      const name = document.getElementById("name").value.trim();
+      if (!name) return alert("Bitte einen Namen eingeben!");
+      const res = await fetch(apiBase + "/add", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      const data = await res.json();
+      if (data.error) return alert(data.error);
+      document.getElementById("pinInfo").textContent =
+        `Dein PIN: ${data.pin} — bitte sicher aufbewahren!`;
+      document.getElementById("name").value = "";
+      loadList();
+    }
+    async function loadList() {
+      const res = await fetch(apiBase + "/list");
+      const data = await res.json();
+      document.getElementById("list").innerHTML =
+        data.names.map(n => `<li>${n}</li>`).join("") || "<li>Keine Teilnehmer</li>";
+    }
+    async function startWichteln() {
+      if (!confirm("Wichteln starten? Danach keine Änderungen mehr möglich.")) return;
+      const res = await fetch(apiBase + "/start", { method: "POST" });
+      const data = await res.json();
+      if (data.error) return alert(data.error);
+      alert("Zuteilung erstellt! Jeder Teilnehmer kann nun mit seinem PIN ziehen.");
+      loadList();
+    }
+    async function reveal() {
+      const pin = document.getElementById("pin").value.trim();
+      if (!pin) return alert("Bitte deinen PIN eingeben!");
+      const res = await fetch(apiBase + "/reveal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin }),
+      });
+      const data = await res.json();
+      document.getElementById("result").textContent =
+        data.error ? data.error : `Du beschenkst: ${data.recipient}`;
+    }
+    loadList();
+  </script>
+</body>
+</html>
