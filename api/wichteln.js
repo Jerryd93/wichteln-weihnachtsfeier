@@ -6,9 +6,20 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-let participants = []; // [{ name, pin }]
-let assignments = {};  // pin -> recipientName
+let participants = [];
+let assignments = {};
 let started = false;
+
+const ADMIN_PASS = "wichteladmin93";
+
+function checkAdminPassword(req, res) {
+  const pw = (req.body && req.body.password) || req.query.password;
+  if (!pw || pw !== ADMIN_PASS) {
+    res.status(401).json({ error: "Ungültiges Admin-Passwort." });
+    return false;
+  }
+  return true;
+}
 
 app.post("/api/add", (req, res) => {
   if (started) return res.json({ error: "Wichteln bereits gestartet!" });
@@ -26,18 +37,30 @@ app.get("/api/list", (req, res) => {
 });
 
 app.post("/api/start", (req, res) => {
+  if (!checkAdminPassword(req, res)) return;
   if (participants.length < 2)
     return res.json({ error: "Mindestens zwei Teilnehmer nötig." });
+
   started = true;
   const names = participants.map(p => p.name);
   let shuffled;
+  let tries = 0;
   do {
     shuffled = [...names].sort(() => Math.random() - 0.5);
+    tries++;
+    if (tries > 5000) break;
   } while (names.some((n, i) => n === shuffled[i]));
+
+  if (names.some((n, i) => n === shuffled[i])) {
+    const n = names.length;
+    shuffled = names.map((_, i) => names[(i + 1) % n]);
+  }
+
   assignments = {};
   participants.forEach((p, i) => {
     assignments[p.pin] = shuffled[i];
   });
+
   res.json({ ok: true });
 });
 
@@ -47,6 +70,14 @@ app.post("/api/reveal", (req, res) => {
   const recipient = assignments[pin];
   if (!recipient) return res.json({ error: "Ungültiger PIN." });
   res.json({ recipient });
+});
+
+app.post("/api/reset", (req, res) => {
+  if (!checkAdminPassword(req, res)) return;
+  participants = [];
+  assignments = {};
+  started = false;
+  res.json({ ok: true });
 });
 
 export default app;

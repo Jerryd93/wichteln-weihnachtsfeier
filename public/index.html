@@ -10,10 +10,10 @@
     input,button{padding:.6rem .8rem;margin:.3rem;border-radius:8px;border:1px solid #ccc;font-size:1rem;}
     button{background:#b22222;color:white;cursor:pointer;}
     button:hover{background:#8b0000;}
-    .hidden{display:none;}
-    .card{background:#fff;padding:1rem;border-radius:12px;max-width:600px;margin:1rem auto;box-shadow:0 4px 10px rgba(0,0,0,0.1);}
+    .card{background:#fff;padding:1rem;border-radius:12px;max-width:700px;margin:1rem auto;box-shadow:0 4px 10px rgba(0,0,0,0.1);text-align:left;}
     ul{list-style:none;padding:0}
     li{margin:.4rem 0;padding:.4rem .6rem;border-radius:8px;background:#fff8f6;border:1px solid #eee;}
+    #adminPanel{display:none;margin-top:1rem;}
   </style>
 </head>
 <body>
@@ -28,8 +28,22 @@
 
   <div class="card">
     <h2>Teilnehmerliste</h2>
-    <button onclick="startWichteln()">Wichteln starten</button>
     <ul id="list"></ul>
+
+    <div id="adminLogin">
+      <h3>🔐 Admin Login</h3>
+      <input type="password" id="adminPw" placeholder="Admin-Passwort" />
+      <button onclick="loginAdmin()">Login</button>
+      <p id="loginStatus" style="color:red;"></p>
+    </div>
+
+    <div id="adminPanel">
+      <h3>🛠️ Admin-Bereich</h3>
+      <p>Status: <span id="statusText"></span></p>
+      <button onclick="startWichteln()">Wichteln starten</button>
+      <button onclick="resetAll()" style="background:#777;">Alles zurücksetzen</button>
+      <button onclick="logoutAdmin()" style="background:#555;">Logout</button>
+    </div>
   </div>
 
   <div class="card">
@@ -41,6 +55,9 @@
 
   <script>
     const apiBase = "/api";
+    let adminLoggedIn = false;
+    const adminPassword = "wichteladmin93";
+
     async function addParticipant() {
       const name = document.getElementById("name").value.trim();
       if (!name) return alert("Bitte einen Namen eingeben!");
@@ -56,20 +73,29 @@
       document.getElementById("name").value = "";
       loadList();
     }
+
     async function loadList() {
       const res = await fetch(apiBase + "/list");
       const data = await res.json();
       document.getElementById("list").innerHTML =
-        data.names.map(n => `<li>${n}</li>`).join("") || "<li>Keine Teilnehmer</li>";
+        (data.names && data.names.length ? data.names.map(n => `<li>${n}</li>`).join("") : "<li>Keine Teilnehmer</li>");
+      document.getElementById("statusText").textContent = data.started ? "Gestartet" : "Noch nicht gestartet";
     }
+
     async function startWichteln() {
+      if (!adminLoggedIn) return alert("Bitte zuerst als Admin einloggen.");
       if (!confirm("Wichteln starten? Danach keine Änderungen mehr möglich.")) return;
-      const res = await fetch(apiBase + "/start", { method: "POST" });
+      const res = await fetch(apiBase + "/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: adminPassword }),
+      });
       const data = await res.json();
       if (data.error) return alert(data.error);
       alert("Zuteilung erstellt! Jeder Teilnehmer kann nun mit seinem PIN ziehen.");
       loadList();
     }
+
     async function reveal() {
       const pin = document.getElementById("pin").value.trim();
       if (!pin) return alert("Bitte deinen PIN eingeben!");
@@ -82,6 +108,39 @@
       document.getElementById("result").textContent =
         data.error ? data.error : `Du beschenkst: ${data.recipient}`;
     }
+
+    async function resetAll() {
+      if (!adminLoggedIn) return alert("Bitte zuerst als Admin einloggen.");
+      if (!confirm("Wirklich alles zurücksetzen? Diese Aktion löscht alle Daten.")) return;
+      const res = await fetch(apiBase + "/reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: adminPassword }),
+      });
+      const data = await res.json();
+      if (data.error) return alert(data.error);
+      alert("Alle Daten wurden zurückgesetzt.");
+      loadList();
+    }
+
+    function loginAdmin() {
+      const pw = document.getElementById("adminPw").value.trim();
+      if (pw === adminPassword) {
+        adminLoggedIn = true;
+        document.getElementById("adminLogin").style.display = "none";
+        document.getElementById("adminPanel").style.display = "block";
+        document.getElementById("loginStatus").textContent = "";
+      } else {
+        document.getElementById("loginStatus").textContent = "Falsches Passwort.";
+      }
+    }
+
+    function logoutAdmin() {
+      adminLoggedIn = false;
+      document.getElementById("adminLogin").style.display = "block";
+      document.getElementById("adminPanel").style.display = "none";
+    }
+
     loadList();
   </script>
 </body>
