@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Ace&Tate Wichteln 🎄</title>
+  <title>Geheimes Wichteln 🎄</title>
   <style>
     body{font-family:Inter,Arial,sans-serif;background:#f9f4f1;margin:0;padding:2rem;color:#222;text-align:center;}
     h1{color:#b22222;margin-bottom:0.25rem;}
@@ -22,185 +22,224 @@
   </style>
 </head>
 <body>
+
   <div class="top" style="max-width:900px;margin:0 auto 0.5rem;">
     <div>
-      <h1>🎁 Ace & Tate Wichteln</h1>
+      <h1>🎁 Geheimes Wichteln</h1>
       <div class="muted">Einfach, geheim & ein bisschen magisch ✨</div>
     </div>
   </div>
 
-  <div class="guide" role="region" aria-label="Anleitung">
+  <div class="guide">
     <h2>🎅 So funktioniert das Wichteln:</h2>
     <ol>
       <li>Gib deinen <strong>Namen</strong> ein und klicke auf <strong>„Hinzufügen“</strong>.</li>
-      <li>Du bekommst einen <strong>PIN-Code</strong> — bitte <u>unbedingt aufschreiben!</u></li>
-      <li>Wenn alle eingetragen sind, startet der Admin das Wichteln (geschützt durch Passwort).</li>
-      <li>Danach kannst du mit deinem PIN herausfinden, <strong>wen du beschenkst 🎁</strong>.</li>
+      <li>Du bekommst einen <strong>PIN-Code</strong> — bitte unbedingt aufschreiben!</li>
+      <li>Wenn alle eingetragen sind, startet der Admin das Wichteln.</li>
+      <li>Danach kannst du mit deinem PIN herausfinden, wen du beschenkst 🎁.</li>
       <li>Nur der Admin kann alles zurücksetzen oder neu starten.</li>
     </ol>
   </div>
 
-  <div class="card" aria-labelledby="addTitle">
-    <h2 id="addTitle">Teilnehmer hinzufügen</h2>
+  <div class="card">
+    <h2>Teilnehmer hinzufügen</h2>
     <input type="text" id="name" placeholder="Name" />
     <button id="addBtn">Hinzufügen</button>
     <p id="pinInfo" class="muted"></p>
   </div>
 
-  <div class="card" aria-labelledby="listTitle">
-    <h2 id="listTitle">Teilnehmerliste</h2>
-    <ul id="list" aria-live="polite"></ul>
+  <div class="card">
+    <h2>Teilnehmerliste</h2>
+    <ul id="list"></ul>
 
-    <div id="adminLogin" style="margin-top:1rem;">
+    <div id="adminLogin">
       <h3>🔐 Admin Login</h3>
       <input type="password" id="adminPw" placeholder="Admin-Passwort" />
       <button id="loginBtn">Login</button>
       <p id="loginStatus" style="color:red;"></p>
     </div>
 
-    <div id="adminPanel" aria-hidden="true">
+    <div id="adminPanel">
       <h3>🛠️ Admin-Bereich</h3>
       <p>Status: <span id="statusText"></span></p>
+
       <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
         <button id="startBtn">Wichteln starten</button>
         <button id="resetBtn" style="background:#777;">Alles zurücksetzen</button>
+        <button id="showPinsBtn" style="background:#b26c22;">PIN-Liste anzeigen</button>
         <button id="logoutBtn" style="background:#555;">Logout</button>
       </div>
+
+      <div id="pinList" class="muted" style="margin-top:1rem;"></div>
     </div>
   </div>
 
-  <div class="card" aria-labelledby="revealTitle">
-    <h2 id="revealTitle">Zuteilung anzeigen</h2>
+  <div class="card">
+    <h2>Zuteilung anzeigen</h2>
     <input type="text" id="pin" placeholder="Dein PIN-Code" />
     <button id="revealBtn">Ziehen</button>
     <p id="result" class="muted"></p>
   </div>
 
-  <script>
-    const apiBase = "/api";
-    let adminLoggedIn = false;
-    // Admin-PW (Frontend nur zur Anzeige des Admin-Panel-UX). Backend prüft wirklich.
-    const adminPassword = "wichteladmin93";
+<script>
+  const apiBase = "/api";
+  const adminPassword = "wichteladmin93";
+  let adminLoggedIn = false;
 
-    // DOM
-    const addBtn = document.getElementById("addBtn");
-    const addInput = document.getElementById("name");
-    const pinInfo = document.getElementById("pinInfo");
-    const listEl = document.getElementById("list");
-    const loginBtn = document.getElementById("loginBtn");
-    const adminPwInput = document.getElementById("adminPw");
-    const loginStatus = document.getElementById("loginStatus");
-    const adminPanel = document.getElementById("adminPanel");
-    const adminLogin = document.getElementById("adminLogin");
-    const statusText = document.getElementById("statusText");
-    const startBtn = document.getElementById("startBtn");
-    const resetBtn = document.getElementById("resetBtn");
-    const logoutBtn = document.getElementById("logoutBtn");
-    const revealBtn = document.getElementById("revealBtn");
-    const pinInput = document.getElementById("pin");
-    const resultP = document.getElementById("result");
+  const addBtn = document.getElementById("addBtn");
+  const addInput = document.getElementById("name");
+  const pinInfo = document.getElementById("pinInfo");
+  const listEl = document.getElementById("list");
+  const loginBtn = document.getElementById("loginBtn");
+  const adminPwInput = document.getElementById("adminPw");
+  const loginStatus = document.getElementById("loginStatus");
+  const adminPanel = document.getElementById("adminPanel");
+  const adminLogin = document.getElementById("adminLogin");
+  const statusText = document.getElementById("statusText");
+  const startBtn = document.getElementById("startBtn");
+  const resetBtn = document.getElementById("resetBtn");
+  const logoutBtn = document.getElementById("logoutBtn");
+  const revealBtn = document.getElementById("revealBtn");
+  const pinInput = document.getElementById("pin");
+  const resultP = document.getElementById("result");
+  const showPinsBtn = document.getElementById("showPinsBtn");
+  const pinListEl = document.getElementById("pinList");
 
-    addBtn.addEventListener("click", addParticipant);
-    addInput.addEventListener("keydown", e => { if (e.key === "Enter") addParticipant(); });
-    loginBtn.addEventListener("click", loginAdmin);
-    startBtn.addEventListener("click", startWichteln);
-    resetBtn.addEventListener("click", resetAll);
-    logoutBtn.addEventListener("click", logoutAdmin);
-    revealBtn.addEventListener("click", reveal);
-    pinInput.addEventListener("keydown", e => { if (e.key === "Enter") reveal(); });
+  addBtn.addEventListener("click", addParticipant);
+  addInput.addEventListener("keydown", e => { if (e.key === "Enter") addParticipant(); });
+  loginBtn.addEventListener("click", loginAdmin);
+  startBtn.addEventListener("click", startWichteln);
+  resetBtn.addEventListener("click", resetAll);
+  logoutBtn.addEventListener("click", logoutAdmin);
+  revealBtn.addEventListener("click", reveal);
+  pinInput.addEventListener("keydown", e => { if (e.key === "Enter") reveal(); });
+  showPinsBtn.addEventListener("click", loadPins);
 
-    async function addParticipant() {
-      const name = addInput.value.trim();
-      if (!name) return alert("Bitte einen Namen eingeben!");
-      const res = await fetch(apiBase + "/add", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
-      });
-      const data = await res.json();
-      if (data.error) return alert(data.error);
-      pinInfo.textContent = `Dein PIN: ${data.pin} — bitte sicher aufbewahren!`;
-      addInput.value = "";
-      loadList();
-    }
+  async function addParticipant() {
+    const name = addInput.value.trim();
+    if (!name) return alert("Bitte einen Namen eingeben!");
 
-    async function loadList() {
-      try {
-        const res = await fetch(apiBase + "/list");
-        const data = await res.json();
-        listEl.innerHTML = (data.names && data.names.length)
-          ? data.names.map(n => `<li>${escapeHtml(n)}</li>`).join("")
-          : "<li class='muted'>Keine Teilnehmer</li>";
-        statusText.textContent = data.started ? "Gestartet" : "Noch nicht gestartet";
-      } catch (e) {
-        listEl.innerHTML = "<li class='muted'>Fehler beim Laden</li>";
-      }
-    }
+    const res = await fetch(apiBase + "/add", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
 
-    async function startWichteln() {
-      if (!adminLoggedIn) return alert("Bitte zuerst als Admin einloggen.");
-      if (!confirm("Wichteln starten? Danach keine Änderungen mehr möglich.")) return;
-      const res = await fetch(apiBase + "/start", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: adminPassword }),
-      });
-      const data = await res.json();
-      if (data.error) return alert(data.error);
-      alert("Zuteilung erstellt! Jeder Teilnehmer kann nun mit seinem PIN ziehen.");
-      loadList();
-    }
+    const data = await res.json();
+    if (data.error) return alert(data.error);
 
-    async function reveal() {
-      const pin = pinInput.value.trim();
-      if (!pin) return alert("Bitte deinen PIN eingeben!");
-      const res = await fetch(apiBase + "/reveal", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin }),
-      });
-      const data = await res.json();
-      resultP.textContent = data.error ? data.error : `Du beschenkst: ${data.recipient}`;
-    }
-
-    async function resetAll() {
-      if (!adminLoggedIn) return alert("Bitte zuerst als Admin einloggen.");
-      if (!confirm("Wirklich alles zurücksetzen? Diese Aktion löscht alle Daten.")) return;
-      const res = await fetch(apiBase + "/reset", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: adminPassword }),
-      });
-      const data = await res.json();
-      if (data.error) return alert(data.error);
-      alert("Alle Daten wurden zurückgesetzt.");
-      loadList();
-    }
-
-    function loginAdmin() {
-      const pw = adminPwInput.value.trim();
-      if (pw === adminPassword) {
-        adminLoggedIn = true;
-        adminLogin.style.display = "none";
-        adminPanel.style.display = "block";
-        loginStatus.textContent = "";
-        adminPwInput.value = "";
-      } else {
-        loginStatus.textContent = "Falsches Passwort.";
-      }
-    }
-
-    function logoutAdmin() {
-      adminLoggedIn = false;
-      adminLogin.style.display = "block";
-      adminPanel.style.display = "none";
-    }
-
-    // einfache HTML-escape
-    function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
-
-    // initial
+    pinInfo.textContent = `Dein PIN: ${data.pin}`;
+    addInput.value = "";
     loadList();
-  </script>
+  }
+
+  async function loadList() {
+    const res = await fetch(apiBase + "/list");
+    const data = await res.json();
+
+    listEl.innerHTML = data.names.length
+      ? data.names.map(n => `<li>${escapeHtml(n)}</li>`).join("")
+      : "<li class='muted'>Keine Teilnehmer</li>";
+
+    statusText.textContent = data.started ? "Gestartet" : "Noch nicht gestartet";
+  }
+
+  async function startWichteln() {
+    if (!adminLoggedIn) return alert("Bitte zuerst als Admin einloggen.");
+
+    const res = await fetch(apiBase + "/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: adminPassword }),
+    });
+
+    const data = await res.json();
+    if (data.error) return alert(data.error);
+
+    alert("Wichteln wurde gestartet!");
+    loadList();
+  }
+
+  async function reveal() {
+    const pin = pinInput.value.trim();
+    if (!pin) return alert("PIN fehlt!");
+
+    const res = await fetch(apiBase + "/reveal", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pin }),
+    });
+
+    const data = await res.json();
+    resultP.textContent = data.error ? data.error : `Du beschenkst: ${data.recipient}`;
+  }
+
+  async function loadPins() {
+    if (!adminLoggedIn) return alert("Bitte zuerst einloggen.");
+
+    const res = await fetch(apiBase + "/pins", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: adminPassword })
+    });
+
+    const data = await res.json();
+
+    if (data.error) {
+      pinListEl.textContent = data.error;
+      return;
+    }
+
+    pinListEl.innerHTML =
+      "<strong>PIN-Liste:</strong><br>" +
+      data.pins.map(p => `${escapeHtml(p.name)} — <code>${p.pin}</code>`).join("<br>");
+  }
+
+  async function resetAll() {
+    if (!adminLoggedIn) return alert("Bitte zuerst einloggen.");
+
+    if (!confirm("Wirklich alles löschen?")) return;
+
+    const res = await fetch(apiBase + "/reset", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: adminPassword }),
+    });
+
+    const data = await res.json();
+    if (data.error) return alert(data.error);
+
+    alert("Alles zurückgesetzt!");
+    loadList();
+  }
+
+  function loginAdmin() {
+    if (adminPwInput.value.trim() === adminPassword) {
+      adminLoggedIn = true;
+      adminLogin.style.display = "none";
+      adminPanel.style.display = "block";
+      loginStatus.textContent = "";
+      loadPins();
+    } else {
+      loginStatus.textContent = "Falsches Passwort!";
+    }
+    adminPwInput.value = "";
+  }
+
+  function logoutAdmin() {
+    adminLoggedIn = false;
+    adminPanel.style.display = "none";
+    adminLogin.style.display = "block";
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, m => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[m]));
+  }
+
+  loadList();
+</script>
+
 </body>
 </html>
